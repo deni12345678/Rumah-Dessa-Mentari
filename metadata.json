@@ -1,0 +1,6 @@
+{
+  "name": "Rumah Dessa Mentari",
+  "description": "Inspirasi untuk Semua, Karya untuk Dunia. Media digital artikel, literasi, komunitas kontributor, dan layanan penulisan buku.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
