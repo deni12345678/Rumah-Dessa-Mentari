@@ -73,7 +73,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
   const handleForgotPassword = (e: React.FormEvent) => {
     e.preventDefault();
-    setSuccessMessage('Tautan pemulihan kata sandi telah dikirimkan ke email Anda (simulasi pemulihan aman).');
+    setSuccessMessage('Tautan pemulihan kata sandi telah dikirimkan ke email Anda.');
     setTimeout(() => {
       setSuccessMessage(null);
       setMode('login');

@@ -197,15 +197,8 @@ export class DmlStore {
   private static notify() {
     this.listeners.forEach(fn => fn());
   }
-
   public static async init() {
-    try {
-      await getDocFromServer(doc(db, 'test', 'connection')).catch(() => {});
-    } catch (e) {
-      console.warn('Offline connection note:', e);
-    }
-
-    // Remove initial seeding logic to ensure clean data for production
+    // Removed test connection and initial seeding for production readiness
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       safeSet(STORAGE_KEYS.USERS, []);
     }
@@ -380,27 +373,6 @@ export class DmlStore {
         const credential = await signInWithEmailAndPassword(auth, cleanEmail, passwordPlain);
         firebaseUser = credential.user;
       } catch (authErr: any) {
-        // Fallback to local store if demo or local-only account
-        const users = safeGet<any[]>(STORAGE_KEYS.USERS, []);
-        const localMatch = users.find(u => u.email.toLowerCase().trim() === cleanEmail);
-        if (localMatch) {
-          const sessionUser: User = {
-            id: localMatch.id,
-            name: localMatch.name,
-            email: localMatch.email,
-            role: localMatch.role,
-            approvalStatus: localMatch.approvalStatus || 'approved',
-            bio: localMatch.bio,
-            avatarUrl: localMatch.avatarUrl,
-            phone: localMatch.phone,
-            portfolioUrl: localMatch.portfolioUrl,
-            preferredCategories: localMatch.preferredCategories,
-            createdAt: localMatch.createdAt,
-          };
-          safeSet(STORAGE_KEYS.CURRENT_USER, sessionUser);
-          this.notify();
-          return { success: true, user: sessionUser };
-        }
         return { success: false, error: formatAuthError(authErr) };
       }
 
@@ -1421,20 +1393,11 @@ export class DmlStore {
   private static STORAGE_KEY_DAILY_VISITS = 'dml_daily_visits_v1';
 
   public static getSiteVisitsCount(): number {
-    return safeGet<number>(this.STORAGE_KEY_VISITS, 28450);
+    return safeGet<number>(this.STORAGE_KEY_VISITS, 0);
   }
 
   public static getDailyVisits(): { date: string; visits: number }[] {
-    const defaultData = [
-      { date: '2026-10-18', visits: 340 },
-      { date: '2026-10-19', visits: 412 },
-      { date: '2026-10-20', visits: 389 },
-      { date: '2026-10-21', visits: 520 },
-      { date: '2026-10-22', visits: 645 },
-      { date: '2026-10-23', visits: 780 },
-      { date: new Date().toISOString().split('T')[0], visits: 890 },
-    ];
-    return safeGet<{ date: string; visits: number }[]>(this.STORAGE_KEY_DAILY_VISITS, defaultData);
+    return safeGet<{ date: string; visits: number }[]>(this.STORAGE_KEY_DAILY_VISITS, []);
   }
 
   public static incrementSiteVisit(): void {
@@ -1512,26 +1475,7 @@ export class DmlStore {
   }
 
   public static getCommentsForArticle(articleId: string): ArticleComment[] {
-    const allComments = safeGet<ArticleComment[]>(STORAGE_KEYS.COMMENTS, [
-      {
-        id: 'comm-init-1',
-        articleId: articleId,
-        authorName: 'Dr. H. M. Taufik, M.Pd.',
-        authorEmail: 'taufik.pendidikan@gmail.com',
-        authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
-        content: 'Artikel yang sangat mencerahkan dan membuka wawasan kita tentang pentingnya keteladanan literasi di akar rumput. Terima kasih penulis dan redaksi RDM!',
-        createdAt: '2026-10-20T10:30:00Z',
-      },
-      {
-        id: 'comm-init-2',
-        articleId: articleId,
-        authorName: 'Rina Marlina, S.Sos.',
-        authorEmail: 'rina.marlina@yahoo.com',
-        authorAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
-        content: 'Semoga inisiatif ini terus menginspirasi lebih banyak desa di Indonesia. Sangat relevan dengan tantangan pendidikan saat ini.',
-        createdAt: '2026-10-21T14:15:00Z',
-      }
-    ]);
+    const allComments = safeGet<ArticleComment[]>(STORAGE_KEYS.COMMENTS, []);
     return allComments
       .filter(c => c.articleId === articleId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
