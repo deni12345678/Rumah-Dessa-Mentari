@@ -12,7 +12,6 @@ import {
   UserApprovalStatus,
   WriterNotification
 } from '../types';
-import { INITIAL_ARTICLES, INITIAL_BOOKS, INITIAL_SITE_SETTINGS, INITIAL_USERS } from './initialData';
 import { calculateReadingTime } from './readingTime';
 import { auth, db } from './firebase';
 import {
@@ -206,13 +205,13 @@ export class DmlStore {
       console.warn('Offline connection note:', e);
     }
 
-    // Initialize local storage fallback for users
+    // Remove initial seeding logic to ensure clean data for production
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
-      safeSet(STORAGE_KEYS.USERS, INITIAL_USERS);
+      safeSet(STORAGE_KEYS.USERS, []);
     }
 
     if (!localStorage.getItem(STORAGE_KEYS.ARTICLES)) {
-      safeSet(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+      safeSet(STORAGE_KEYS.ARTICLES, []);
     }
     // Real-time cloud sync for published articles
     try {
@@ -224,7 +223,7 @@ export class DmlStore {
             cloudArticles.push(docSnap.data() as Article);
           });
           
-          const localArticles = safeGet<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+          const localArticles = safeGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
           const mergedMap = new Map<string, Article>();
           
           // Keep local drafts/private articles, but override with published articles from cloud
@@ -243,15 +242,21 @@ export class DmlStore {
     }
 
     const existingSettings = safeGet<SiteSettings | null>(STORAGE_KEYS.SETTINGS, null);
-    if (!existingSettings || existingSettings.brandName === 'Rumah Dessa Mentari' || existingSettings.whatsappNumber === '6287879069404') {
+    if (!existingSettings) {
       safeSet(STORAGE_KEYS.SETTINGS, {
-        ...(existingSettings || INITIAL_SITE_SETTINGS),
         brandName: 'Rumah Dessa Mentari',
-        whatsappNumber: '628787906404',
+        slogan: 'Inspirasi untuk Semua, Karya untuk Dunia.',
+        shortDescription: 'Berbagi inspirasi, memperluas wawasan, dan menghadirkan karya yang bermakna melalui media artikel, komunitas kontributor, dan layanan literasi buku.',
+        whatsappNumber: '6287879069404',
+        contactEmail: 'dessamentarilangit@gmail.com',
+        adminEmailBackup: 'santosodeni3@gmail.com',
+        officeLocation: 'Karawang & Bekasi, Indonesia',
+        allowSubmissions: true,
+        editorialPolicyVersion: 'v2.5 (Production)',
       });
     }
     if (!localStorage.getItem(STORAGE_KEYS.BOOKS)) {
-      safeSet(STORAGE_KEYS.BOOKS, INITIAL_BOOKS);
+      safeSet(STORAGE_KEYS.BOOKS, []);
     }
 
     onAuthStateChanged(auth, async (firebaseUser) => {
@@ -338,9 +343,19 @@ export class DmlStore {
   }
 
   public static getSettings(): SiteSettings {
-    const s = safeGet<SiteSettings>(STORAGE_KEYS.SETTINGS, INITIAL_SITE_SETTINGS);
-    if (!s.brandName || s.brandName === 'Rumah Dessa Mentari') {
-      s.brandName = 'Rumah Dessa Mentari';
+    const s = safeGet<SiteSettings | null>(STORAGE_KEYS.SETTINGS, null);
+    if (!s) {
+      return {
+        brandName: 'Rumah Dessa Mentari',
+        slogan: 'Inspirasi untuk Semua, Karya untuk Dunia.',
+        shortDescription: '',
+        whatsappNumber: '6287879069404',
+        contactEmail: 'dessamentarilangit@gmail.com',
+        adminEmailBackup: 'santosodeni3@gmail.com',
+        officeLocation: 'Karawang & Bekasi, Indonesia',
+        allowSubmissions: true,
+        editorialPolicyVersion: 'v2.5',
+      };
     }
     return s;
   }
@@ -366,7 +381,7 @@ export class DmlStore {
         firebaseUser = credential.user;
       } catch (authErr: any) {
         // Fallback to local store if demo or local-only account
-        const users = safeGet<any[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+        const users = safeGet<any[]>(STORAGE_KEYS.USERS, []);
         const localMatch = users.find(u => u.email.toLowerCase().trim() === cleanEmail);
         if (localMatch) {
           const sessionUser: User = {
@@ -390,7 +405,7 @@ export class DmlStore {
       }
 
       // Firebase Auth login succeeded
-      const users = safeGet<any[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+      const users = safeGet<any[]>(STORAGE_KEYS.USERS, []);
       let localMatch = users.find(u => u.email.toLowerCase().trim() === cleanEmail || u.id === firebaseUser.uid);
 
       const isRootAdmin = cleanEmail === 'santosodeni3@gmail.com' || cleanEmail === 'denisarah26@gmail.com';
@@ -597,7 +612,7 @@ export class DmlStore {
   }
 
   public static getPendingWriters(): User[] {
-    const users = this.cachedGet<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+    const users = this.cachedGet<User[]>(STORAGE_KEYS.USERS, []);
     return users.filter(u => u.role === 'contributor' && u.approvalStatus === 'pending');
   }
 
@@ -611,7 +626,7 @@ export class DmlStore {
   }
 
   public static getAllUsers(): User[] {
-    return this.cachedGet<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+    return this.cachedGet<User[]>(STORAGE_KEYS.USERS, []);
   }
 
   public static async refreshUsersFromCloud(): Promise<User[]> {
@@ -621,7 +636,7 @@ export class DmlStore {
     const isRootAdmin = email === 'santosodeni3@gmail.com' || email === 'denisarah26@gmail.com';
 
     if (!isPrivileged && !isRootAdmin) {
-      return this.cachedGet<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+      return this.cachedGet<User[]>(STORAGE_KEYS.USERS, []);
     }
 
     try {
@@ -640,7 +655,7 @@ export class DmlStore {
         handleFirestoreError(e, OperationType.LIST, 'users');
       }
     }
-    return this.cachedGet<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+    return this.cachedGet<User[]>(STORAGE_KEYS.USERS, []);
   }
 
   public static async updateUserRole(userId: string, newRole: 'reader' | 'contributor' | 'editor' | 'admin'): Promise<{ success: boolean; error?: string }> {
@@ -730,7 +745,7 @@ export class DmlStore {
     }
 
     // Cascade updates to authorName, authorBio, authorAvatar in user's articles
-    const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
     let articlesChanged = false;
     articles.forEach((a, index) => {
       if (a.authorId === userId || (updatedUser.email && a.authorId === current?.id) || (updatedUser.name && a.authorName === current?.name)) {
@@ -783,9 +798,8 @@ export class DmlStore {
     return { success: true, user: updatedUser };
   }
 
-  // --- ARTICLES ---
   public static getArticles(status?: ArticleStatus): Article[] {
-    const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
     if (status) {
       return articles.filter(a => a.status === status);
     }
@@ -811,17 +825,17 @@ export class DmlStore {
   }
 
   public static getArticleBySlug(slug: string): Article | undefined {
-    const list = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    const list = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
     return list.find(a => a.slug === slug);
   }
 
   public static getArticlesByAuthor(authorId: string): Article[] {
-    const list = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    const list = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
     return list.filter(a => a.authorId === authorId);
   }
 
   public static getArticlesForReview(): Article[] {
-    const list = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    const list = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
     return list.filter(a => a.status === 'submitted' || a.status === 'under_review');
   }
 
@@ -852,7 +866,7 @@ export class DmlStore {
       if (!querySnapshot.empty) {
         const cloudArticles: Article[] = [];
         querySnapshot.forEach(docSnap => cloudArticles.push(docSnap.data() as Article));
-        const localArticles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+        const localArticles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
         const mergedMap = new Map<string, Article>();
         localArticles.forEach(a => mergedMap.set(a.id, a));
         cloudArticles.forEach(a => mergedMap.set(a.id, a));
@@ -864,7 +878,7 @@ export class DmlStore {
     } catch (e) {
       handleFirestoreError(e, OperationType.LIST, 'articles');
     }
-    return this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    return this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
   }
 
   public static async saveArticle(data: Partial<Article>, asSubmit: boolean = false): Promise<{ success: boolean; article?: Article; error?: string }> {
@@ -896,7 +910,7 @@ export class DmlStore {
       .substring(0, 80);
 
     const now = new Date().toISOString();
-    const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
     const existingIndex = articles.findIndex(a => a.id === data.id);
 
     let savedArticle: Article;
@@ -980,7 +994,7 @@ export class DmlStore {
     decision: 'approved' | 'revision_requested' | 'rejected',
     notes?: string
   ): Promise<{ success: boolean; error?: string }> {
-    const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
     const idx = articles.findIndex(a => a.id === articleId);
     if (idx === -1) return { success: false, error: 'Artikel tidak ditemukan.' };
 
@@ -1046,7 +1060,7 @@ export class DmlStore {
     // Auto-seed existing decisions for this user if no notifications exist yet
     const userNotifs = notifications.filter(n => n.userId === userId);
     if (userNotifs.length === 0) {
-      const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+      const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
       const authorArticles = articles.filter(a => a.authorId === userId);
       const seeded: WriterNotification[] = [];
 
@@ -1141,7 +1155,7 @@ export class DmlStore {
 
   public static async deleteArticle(articleId: string): Promise<{ success: boolean; error?: string }> {
     // 1. Update local cache immediately
-    const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
     const updated = articles.filter(a => a.id !== articleId);
     this.cachedSet(STORAGE_KEYS.ARTICLES, updated);
 
@@ -1361,7 +1375,7 @@ export class DmlStore {
   }
 
   public static getBooks(): BookCatalogItem[] {
-    return safeGet<BookCatalogItem[]>(STORAGE_KEYS.BOOKS, INITIAL_BOOKS);
+    return safeGet<BookCatalogItem[]>(STORAGE_KEYS.BOOKS, []);
   }
 
   public static addBookProposal(book: Omit<BookCatalogItem, 'id' | 'status'>): void {
@@ -1447,7 +1461,7 @@ export class DmlStore {
   }
 
   public static async likeArticle(articleId: string): Promise<{ success: boolean; likes: number }> {
-    const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
     const idx = articles.findIndex(a => a.id === articleId);
     if (idx !== -1) {
       const likedKey = `dml_liked_art_${articleId}`;
@@ -1478,7 +1492,7 @@ export class DmlStore {
   }
 
   public static async incrementArticleViews(articleId: string): Promise<void> {
-    const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
     const idx = articles.findIndex(a => a.id === articleId);
     if (idx !== -1) {
       const viewedKey = `dml_viewed_art_${articleId}`;
@@ -1556,6 +1570,32 @@ export class DmlStore {
 
     this.notify();
     return { success: true, comment: newComment };
+  }
+
+  public static getAuthorRankings(): { authorId: string; authorName: string; authorAvatar: string; count: number }[] {
+    const articles = this.getPublishedArticles('Semua');
+    const counts: Record<string, { name: string; avatar: string; count: number }> = {};
+
+    articles.forEach(art => {
+      if (!art.authorId) return;
+      if (!counts[art.authorId]) {
+        counts[art.authorId] = {
+          name: art.authorName || 'Penulis',
+          avatar: art.authorAvatar || '',
+          count: 0
+        };
+      }
+      counts[art.authorId].count++;
+    });
+
+    return Object.entries(counts)
+      .map(([id, data]) => ({
+        authorId: id,
+        authorName: data.name,
+        authorAvatar: data.avatar,
+        count: data.count
+      }))
+      .sort((a, b) => b.count - a.count);
   }
 
   public static resetToDefault(): void {

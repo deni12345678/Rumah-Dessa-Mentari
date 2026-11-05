@@ -30,6 +30,7 @@ import { AuthModal } from './components/AuthModal';
 import { CorrectionModal } from './components/CorrectionModal';
 import { SearchModal } from './components/SearchModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { Leaderboard } from './components/Leaderboard';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -49,6 +50,14 @@ export default function App() {
 
   // Subscribe to store updates
   useEffect(() => {
+    // One-time legacy dummy data cleanup for production transition
+    const cleanupKey = 'dml_v2_cleanup_done';
+    if (!localStorage.getItem(cleanupKey)) {
+      const keysToClear = ['dml_articles_v1', 'dml_users_v1', 'dml_books_v1', 'dml_settings_v1'];
+      keysToClear.forEach(k => localStorage.removeItem(k));
+      localStorage.setItem(cleanupKey, 'true');
+    }
+
     // Initialize initial seed data if not present
     DmlStore.init().then(() => {
       DmlStore.incrementSiteVisit();
@@ -412,6 +421,23 @@ export default function App() {
                 </div>
               );
             })()}
+          </div>
+        )}
+
+        {/* VIEW: RANKING PENULIS (LEADERBOARD) */}
+        {currentView === 'ranking' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div className="max-w-3xl mx-auto space-y-10">
+              <div className="text-center space-y-4">
+                <h1 className="text-4xl font-serif-editorial font-bold text-slate-900 tracking-tight">
+                  Apresiasi & Ranking Penulis
+                </h1>
+                <p className="text-slate-600 max-w-xl mx-auto text-sm leading-relaxed">
+                  Platform Rumah Dessa Mentari memberikan penghargaan bagi para kontributor yang paling aktif berbagi inspirasi dan karya bagi dunia.
+                </p>
+              </div>
+              <Leaderboard />
+            </div>
           </div>
         )}
 

@@ -14,188 +14,116 @@ export const Footer: React.FC<FooterProps> = ({
 }) => {
   const settings = DmlStore.getSettings();
   const contactEmail = settings.contactEmail || 'dessamentarilangit@gmail.com';
-  const whatsappNumber = settings.whatsappNumber || '628787906404';
+  const whatsappNumber = settings.whatsappNumber || '6287879069404';
   const officeLocation = settings.officeLocation || 'Karawang & Bekasi, Indonesia';
 
   return (
-    <footer className="bg-[#0A1424] text-slate-300 border-t border-slate-800">
+    <footer className="bg-slate-950 text-slate-400 border-t border-white/5">
       {/* Top Editorial Promise Stripe */}
-      <div className="bg-[#0F1E36] border-b border-slate-800/80 py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4 text-left">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
-              <Sparkles className="w-6 h-6" />
+      <div className="border-b border-white/5 py-12 px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="flex items-center gap-6 text-left">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
+              <Sparkles className="w-7 h-7" />
             </div>
             <div>
-              <h4 className="text-white font-serif-editorial text-lg font-bold">Ruang Bersama untuk Ide & Gagasan Bermakna</h4>
-              <p className="text-sm text-slate-400 max-w-2xl">
-                {settings.brandName || 'Rumah Dessa Mentari'} menyatukan suara pembaca, penulis desa dan kota, akademisi, serta pegiat literasi dalam wadah yang berintegritas dan bebas sensasionalisme.
+              <h4 className="text-white font-serif-editorial text-xl font-bold">Inspirasi untuk Semua, Karya untuk Dunia</h4>
+              <p className="text-sm text-slate-500 max-w-2xl mt-1">
+                Rumah Dessa Mentari menyatukan suara penulis, akademisi, dan pegiat literasi dalam wadah yang berintegritas.
               </p>
             </div>
           </div>
           <button
             onClick={() => onNavigate('pedoman-penulisan')}
-            className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 transition-colors whitespace-nowrap"
+            className="px-6 py-3 text-xs font-bold rounded-xl bg-white/5 hover:bg-white/10 text-amber-400 border border-amber-500/20 transition-all whitespace-nowrap"
           >
-            Baca Kode Etik Redaksi →
+            Kode Etik Redaksi
           </button>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-16">
           {/* Brand Info */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="lg:col-span-2 space-y-6">
             <BrandLogo size="md" lightMode={true} showSlogan={true} />
-            <p className="text-sm text-slate-400 leading-relaxed max-w-sm mt-3">
-              Platform digital yang menjadi ruang berbagi inspirasi, informasi, pengetahuan, gagasan, dan karya tulis masyarakat. Menggabungkan media artikel, komunitas kontributor, serta layanan profesional penulisan dan penyuntingan buku.
+            <p className="text-sm text-slate-500 leading-relaxed max-w-sm">
+              Platform digital yang menjadi ruang berbagi inspirasi, pengetahuan, dan karya tulis masyarakat. Menggabungkan media artikel dengan layanan profesional penerbitan buku.
             </p>
-            <div className="pt-2 text-xs text-slate-400 space-y-2">
-              <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-amber-400 shrink-0" />
-                <a href={`mailto:${contactEmail}`} className="hover:text-amber-300 transition-colors">
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center gap-3 text-xs">
+                <Mail className="w-4 h-4 text-amber-500/60" />
+                <a href={`mailto:${contactEmail}`} className="hover:text-amber-400 transition-colors">
                   {contactEmail}
                 </a>
               </div>
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>Konsultasi WhatsApp: +{whatsappNumber}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>{officeLocation}</span>
+              <div className="flex items-center gap-3 text-xs">
+                <Phone className="w-4 h-4 text-amber-500/60" />
+                <span>WA: +{whatsappNumber}</span>
               </div>
             </div>
           </div>
 
           {/* Kolom Kategori Media */}
           <div>
-            <h4 className="text-white font-semibold text-sm tracking-wider uppercase mb-4 border-b border-slate-800 pb-2">
-              Kanal Berita & Opini
+            <h4 className="text-white font-bold text-xs tracking-[0.1em] uppercase mb-6">
+              Publikasi
             </h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <button onClick={() => onNavigate('artikel', 'Kisah Inspiratif')} className="hover:text-amber-400 transition-colors">
-                  Kisah Inspiratif
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('artikel', 'Pendidikan')} className="hover:text-amber-400 transition-colors">
-                  Pendidikan & Literasi
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('artikel', 'Ekonomi dan UMKM')} className="hover:text-amber-400 transition-colors">
-                  Ekonomi & UMKM
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('artikel', 'Kesehatan')} className="hover:text-amber-400 transition-colors">
-                  Kesehatan (Teredukasi)
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('artikel', 'Opini dan Gagasan')} className="hover:text-amber-400 transition-colors">
-                  Opini & Gagasan
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('artikel', 'Olahraga')} className="hover:text-amber-400 transition-colors">
-                  Olahraga & Kebugaran
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('artikel', 'Informasi Umum')} className="hover:text-amber-400 transition-colors">
-                  Informasi Umum & Cek Fakta
-                </button>
-              </li>
+            <ul className="space-y-4 text-sm font-medium">
+              <li><button onClick={() => onNavigate('artikel', 'Kisah Inspiratif')} className="hover:text-amber-400 transition-colors">Inspirasi</button></li>
+              <li><button onClick={() => onNavigate('artikel', 'Pendidikan')} className="hover:text-amber-400 transition-colors">Pendidikan</button></li>
+              <li><button onClick={() => onNavigate('artikel', 'Opini dan Gagasan')} className="hover:text-amber-400 transition-colors">Opini</button></li>
+              <li><button onClick={() => onNavigate('artikel', 'Literasi dan Buku')} className="hover:text-amber-400 transition-colors">Literasi</button></li>
             </ul>
           </div>
 
           {/* Kolom Layanan & Buku */}
           <div>
-            <h4 className="text-white font-semibold text-sm tracking-wider uppercase mb-4 border-b border-slate-800 pb-2">
-              Layanan & Buku
+            <h4 className="text-white font-bold text-xs tracking-[0.1em] uppercase mb-6">
+              Layanan
             </h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <button onClick={() => onNavigate('layanan')} className="hover:text-amber-400 transition-colors">
-                  Jasa Penulisan Buku (Biografi)
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('layanan')} className="hover:text-amber-400 transition-colors">
-                  Penyuntingan Naskah (Editing)
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('layanan')} className="hover:text-amber-400 transition-colors">
-                  Proofreading & Tata Bahasa
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('layanan')} className="hover:text-amber-400 transition-colors">
-                  Tata Letak (Layout Naskah)
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('penerbitan')} className="hover:text-amber-400 transition-colors">
-                  Fondasi Penerbitan RDM
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('penerbitan')} className="hover:text-amber-400 transition-colors">
-                  Katalog Naskah Pilihan
-                </button>
-              </li>
+            <ul className="space-y-4 text-sm font-medium">
+              <li><button onClick={() => onNavigate('layanan')} className="hover:text-amber-400 transition-colors">Penulisan Buku</button></li>
+              <li><button onClick={() => onNavigate('layanan')} className="hover:text-amber-400 transition-colors">Penyuntingan</button></li>
+              <li><button onClick={() => onNavigate('penerbitan')} className="hover:text-amber-400 transition-colors">Penerbitan</button></li>
+              <li><button onClick={() => onNavigate('penerbitan')} className="hover:text-amber-400 transition-colors">Katalog Naskah</button></li>
             </ul>
           </div>
 
           {/* Kolom Kebijakan & Pedoman Etika */}
           <div>
-            <h4 className="text-white font-semibold text-sm tracking-wider uppercase mb-4 border-b border-slate-800 pb-2">
-              Pedoman & Etika
+            <h4 className="text-white font-bold text-xs tracking-[0.1em] uppercase mb-6">
+              Hukum
             </h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <button onClick={() => onNavigate('pedoman-penulisan')} className="hover:text-amber-400 transition-colors text-left">
-                  Pedoman Penulisan Kontributor
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('ketentuan-publikasi')} className="hover:text-amber-400 transition-colors text-left">
-                  Ketentuan Publikasi Redaksi
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('hak-cipta-dan-koreksi')} className="hover:text-amber-400 transition-colors text-left">
-                  Hak Cipta & Hak Jawab
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('kebijakan-privasi')} className="hover:text-amber-400 transition-colors text-left">
-                  Kebijakan Privasi
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('ketentuan-penggunaan')} className="hover:text-amber-400 transition-colors text-left">
-                  Ketentuan Penggunaan
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onNavigate('tentang')} className="hover:text-amber-400 transition-colors text-left">
-                  Tentang Redaksi & Visi-Misi
-                </button>
-              </li>
+            <ul className="space-y-4 text-sm font-medium">
+              <li><button onClick={() => onNavigate('kebijakan-privasi')} className="hover:text-amber-400 transition-colors">Privasi</button></li>
+              <li><button onClick={() => onNavigate('ketentuan-penggunaan')} className="hover:text-amber-400 transition-colors">Ketentuan</button></li>
+              <li><button onClick={() => onNavigate('hak-cipta-dan-koreksi')} className="hover:text-amber-400 transition-colors">Hak Cipta</button></li>
             </ul>
           </div>
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-12 pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-          <p>© {new Date().getFullYear()} {settings.brandName || 'Rumah Dessa Mentari'}. Seluruh hak cipta dilindungi undang-undang.</p>
-          <div className="flex items-center gap-2">
-            <span>Dikelola dengan integritas literasi & etika jurnalistik Indonesia.</span>
+        <div className="mt-20 pt-10 border-t border-white/5 space-y-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex flex-col items-center md:items-start gap-1">
+              <span className="text-white font-bold text-sm tracking-widest uppercase">DML Digital Solution</span>
+              <span className="text-amber-500/80 text-[10px] font-bold uppercase tracking-[0.3em]">Digital Innovation & Technology</span>
+            </div>
+            
+            <div className="flex items-center gap-6 text-[11px] font-medium text-slate-600 tracking-wider uppercase">
+              <span className="flex items-center gap-2">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Integritas Literasi
+              </span>
+              <span className="hidden md:inline text-slate-800">|</span>
+              <span>Karawang & Bekasi, ID</span>
+            </div>
+          </div>
+
+          <div className="pt-6 border-t border-white/[0.02] flex flex-col sm:flex-row items-center justify-between text-[10px] font-bold text-slate-700 gap-4 tracking-widest uppercase">
+            <p>© 2026 DML Digital Solution. All Rights Reserved. Developed for Rumah Dessa Mentari.</p>
+            <p>v2.5.0 Production Ready</p>
           </div>
         </div>
       </div>
