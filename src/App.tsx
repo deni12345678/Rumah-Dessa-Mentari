@@ -86,8 +86,8 @@ export default function App() {
 
     try {
       const origin = window.location.origin;
-      const logoUrl = `${origin}/assets/aistudio/Logo_Rumah_Mentari_dengan_Buku_Terbuka_4cb8855a.png`;
-      const desc = 'Bagikan inspirasi, perluas wawasan, dan terbitkan karya bermakna di platform literasi Rumah Dessa Mentari.';
+      const logoCardUrl = `${origin}/og-card.jpg`;
+      const desc = 'Platform media literasi inspiratif, opini pemikiran intelektual, wadah kontributor artikel, dan layanan profesional penulisan serta penerbitan buku.';
 
       const updateMeta = (attr: string, key: string, content: string) => {
         let el = document.querySelector(`meta[${attr}="${key}"]`);
@@ -102,13 +102,16 @@ export default function App() {
       updateMeta('property', 'og:title', `${brand} — ${slogan}`);
       updateMeta('property', 'og:site_name', brand);
       updateMeta('property', 'og:description', desc);
-      updateMeta('property', 'og:image', logoUrl);
-      updateMeta('property', 'og:image:secure_url', logoUrl);
+      updateMeta('property', 'og:image', logoCardUrl);
+      updateMeta('property', 'og:image:secure_url', logoCardUrl);
+      updateMeta('property', 'og:image:type', 'image/jpeg');
+      updateMeta('property', 'og:image:width', '1200');
+      updateMeta('property', 'og:image:height', '630');
       updateMeta('property', 'og:url', origin);
       updateMeta('name', 'description', desc);
       updateMeta('name', 'twitter:title', `${brand} — ${slogan}`);
       updateMeta('name', 'twitter:description', desc);
-      updateMeta('name', 'twitter:image', logoUrl);
+      updateMeta('name', 'twitter:image', logoCardUrl);
     } catch {}
   }, [settings?.brandName, settings?.slogan]);
 
