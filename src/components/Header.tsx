@@ -11,7 +11,9 @@ import {
   Shield,
   User as UserIcon,
   UserCheck,
-  X
+  X,
+  KeyRound,
+  Share2
 } from 'lucide-react';
 import { ArticleCategory, User } from '../types';
 import { BrandLogo } from './BrandLogo';
@@ -24,6 +26,7 @@ interface HeaderProps {
   onOpenAuth: () => void;
   onLogout: () => void;
   onOpenSearch: () => void;
+  onOpenShare?: () => void;
 }
 
 export const CATEGORIES_LIST: ArticleCategory[] = [
@@ -44,6 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuth,
   onLogout,
   onOpenSearch,
+  onOpenShare,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
@@ -198,6 +202,19 @@ export const Header: React.FC<HeaderProps> = ({
               <Search className="w-5 h-5" />
             </button>
 
+            {/* Share Portal Button */}
+            {onOpenShare && (
+              <button
+                onClick={onOpenShare}
+                aria-label="Bagikan Tautan Portal"
+                className="p-2 text-slate-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors flex items-center gap-1.5 border border-transparent hover:border-amber-200"
+                title="Bagikan Rumah Dessa Mentari (Lengkap dengan Logo)"
+              >
+                <Share2 className="w-4 h-4 text-amber-600" />
+                <span className="hidden xl:inline text-xs font-bold text-slate-700">Bagikan Link</span>
+              </button>
+            )}
+
             {/* PWA Install Button */}
             <PWAInstallButton />
 
@@ -273,13 +290,22 @@ export const Header: React.FC<HeaderProps> = ({
                     )}
 
                     {currentUser.role === 'admin' && (
-                      <button
-                        onClick={() => handleNav('dashboard-admin')}
-                        className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-red-50 hover:text-red-900 flex items-center gap-2.5"
-                      >
-                        <Shield className="w-4 h-4 text-red-600" />
-                        <span>Kelola Platform (Admin)</span>
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleNav('dashboard-admin')}
+                          className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-red-50 hover:text-red-900 flex items-center gap-2.5"
+                        >
+                          <Shield className="w-4 h-4 text-red-600" />
+                          <span>Pusat Kontrol (Admin)</span>
+                        </button>
+                        <button
+                          onClick={() => handleNav('dashboard-admin', 'admin_profile')}
+                          className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-900 flex items-center gap-2.5"
+                        >
+                          <KeyRound className="w-4 h-4 text-amber-600" />
+                          <span>Profil & Sandi Pengelola</span>
+                        </button>
+                      </>
                     )}
 
                     <div className="border-t border-slate-100 my-1"></div>
@@ -377,6 +403,24 @@ export const Header: React.FC<HeaderProps> = ({
             >
               Pedoman & Etika Publikasi
             </button>
+
+            {onOpenShare && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenShare();
+                }}
+                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold text-amber-900 bg-amber-50/80 hover:bg-amber-100 flex items-center justify-between border border-amber-200/80 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <Share2 className="w-4 h-4 text-amber-600" />
+                  <span>Bagikan Link Resmi (Dengan Logo)</span>
+                </span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-200/70 text-amber-950 font-mono">
+                  QR & Link
+                </span>
+              </button>
+            )}
 
             <div className="pt-3">
               <button

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
   Settings,
@@ -10,6 +10,7 @@ import {
   CheckCircle,
   FileCheck,
   Eye,
+  EyeOff,
   Sliders,
   UserCheck,
   UserPlus,
@@ -20,7 +21,12 @@ import {
   XCircle,
   Send,
   Sparkles,
-  BookOpen
+  BookOpen,
+  KeyRound,
+  Lock,
+  UserCog,
+  Camera,
+  Check
 } from 'lucide-react';
 import { ConsultationRequest, EmailNotificationLog, SiteSettings, User, UserRole } from '../types';
 import { DmlStore } from '../lib/store';
@@ -28,14 +34,49 @@ import { CATEGORIES_LIST } from './Header';
 
 interface AdminDashboardProps {
   currentUser: User;
+  initialTab?: 'pending_writers' | 'users' | 'consultations' | 'settings' | 'email_logs' | 'backup' | 'admin_profile';
 }
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) => {
-  const [activeTab, setActiveTab] = useState<'pending_writers' | 'users' | 'consultations' | 'settings' | 'email_logs' | 'backup'>('pending_writers');
+const ADMIN_PRESET_AVATARS = [
+  {
+    name: 'Pimpinan Redaksi Formal',
+    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    name: 'Pengelola Profesional',
+    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    name: 'Eksekutif & Pendidik',
+    url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    name: 'Akademisi & Penulis',
+    url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    name: 'Kurator Sastra',
+    url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    name: 'Pengabdi Literasi',
+    url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80',
+  },
+];
+
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, initialTab = 'pending_writers' }) => {
+  const [activeTab, setActiveTab] = useState<'pending_writers' | 'users' | 'consultations' | 'settings' | 'email_logs' | 'backup' | 'admin_profile'>(initialTab);
   const [settings, setSettings] = useState<SiteSettings>(DmlStore.getSettings());
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [backupNotice, setBackupNotice] = useState<string | null>(null);
   const [, setForceUpdate] = useState(0);
+
+  // Sync initialTab when changed externally
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   useEffect(() => {
     DmlStore.refreshUsersFromCloud().then(() => {
@@ -46,6 +87,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
     });
     return unsub;
   }, []);
+
+  // Admin Profile Form States
+  const [adminName, setAdminName] = useState(currentUser.name || '');
+  const [adminBio, setAdminBio] = useState(currentUser.bio || '');
+  const [adminAvatarUrl, setAdminAvatarUrl] = useState(currentUser.avatarUrl || ADMIN_PRESET_AVATARS[0].url);
+  const [adminPhone, setAdminPhone] = useState(currentUser.phone || '');
+  const [adminPortfolioUrl, setAdminPortfolioUrl] = useState(currentUser.portfolioUrl || '');
+  const [isSavingAdminProfile, setIsSavingAdminProfile] = useState(false);
+  const [adminProfileMessage, setAdminProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const adminFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Admin Password Form States
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Sync profile fields if currentUser changes
+  useEffect(() => {
+    setAdminName(currentUser.name || '');
+    setAdminBio(currentUser.bio || '');
+    setAdminAvatarUrl(currentUser.avatarUrl || ADMIN_PRESET_AVATARS[0].url);
+    setAdminPhone(currentUser.phone || '');
+    setAdminPortfolioUrl(currentUser.portfolioUrl || '');
+  }, [currentUser]);
 
   // New Writer Modal State
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -163,6 +233,154 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
     reader.readAsText(file);
   };
 
+  const handleAdminPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setAdminProfileMessage({ type: 'error', text: 'Berkas yang dipilih bukan berkas gambar yang valid.' });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const minDim = Math.min(img.width, img.height);
+        const startX = (img.width - minDim) / 2;
+        const startY = (img.height - minDim) / 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = 320;
+        canvas.height = 320;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, 320, 320);
+          const compressed = canvas.toDataURL('image/jpeg', 0.85);
+          setAdminAvatarUrl(compressed);
+          setAdminProfileMessage({
+            type: 'success',
+            text: 'Foto profil pengelola berhasil dipilih. Klik "Simpan Perubahan Profil Pengelola" untuk menyimpan.',
+          });
+        }
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveAdminProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSavingAdminProfile) return;
+    setAdminProfileMessage(null);
+
+    if (!adminName.trim() || adminName.trim().length < 2) {
+      setAdminProfileMessage({ type: 'error', text: 'Nama administrator minimal 2 karakter.' });
+      return;
+    }
+
+    setIsSavingAdminProfile(true);
+    try {
+      const res = await DmlStore.updateUserProfile(currentUser.id, {
+        name: adminName.trim(),
+        bio: adminBio.trim(),
+        avatarUrl: adminAvatarUrl.trim(),
+        phone: adminPhone.trim(),
+        portfolioUrl: adminPortfolioUrl.trim(),
+      });
+
+      if (res.success) {
+        setAdminProfileMessage({
+          type: 'success',
+          text: 'Alhamdulillah! Profil dan data kontak resmi administrator berhasil diperbarui.',
+        });
+        setTimeout(() => setAdminProfileMessage(null), 4000);
+      } else {
+        setAdminProfileMessage({ type: 'error', text: res.error || 'Gagal menyimpan profil.' });
+      }
+    } catch (err: any) {
+      setAdminProfileMessage({ type: 'error', text: err?.message || 'Terjadi kesalahan sistem saat menyimpan profil.' });
+    } finally {
+      setIsSavingAdminProfile(false);
+    }
+  };
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isChangingPassword) return;
+    setPasswordMessage(null);
+
+    if (!currentPassword) {
+      setPasswordMessage({ type: 'error', text: 'Silakan masukkan kata sandi saat ini (lama).' });
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordMessage({ type: 'error', text: 'Kata sandi baru minimal 6 karakter.' });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage({ type: 'error', text: 'Konfirmasi kata sandi baru tidak cocok. Periksa kembali pengetikan Anda.' });
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      setPasswordMessage({ type: 'error', text: 'Kata sandi baru tidak boleh sama dengan kata sandi saat ini.' });
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const res = await DmlStore.changePassword(currentPassword, newPassword);
+      if (res.success) {
+        setPasswordMessage({
+          type: 'success',
+          text: 'Alhamdulillah! Kata sandi akun administrator berhasil diperbarui dengan aman di sistem Firebase.',
+        });
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => setPasswordMessage(null), 5000);
+      } else {
+        setPasswordMessage({ type: 'error', text: res.error || 'Gagal mengubah kata sandi.' });
+      }
+    } catch (err: any) {
+      setPasswordMessage({ type: 'error', text: err?.message || 'Terjadi kesalahan sistem saat memperbarui kata sandi.' });
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const [resetNotice, setResetNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isSendingResetEmail, setIsSendingResetEmail] = useState<string | null>(null);
+
+  const handleAdminResetPassword = async (email: string, name: string) => {
+    setIsSendingResetEmail(email);
+    setResetNotice(null);
+    try {
+      const res = await DmlStore.resetPassword(email);
+      if (res.success) {
+        setResetNotice({
+          type: 'success',
+          text: `Tautan pemulihan kata sandi berhasil dikirim ke ${email} (${name}). Pengguna dapat membuka email untuk mengatur kata sandi baru.`,
+        });
+        setTimeout(() => setResetNotice(null), 8000);
+      } else {
+        setResetNotice({
+          type: 'error',
+          text: res.error || `Gagal mengirim tautan reset sandi untuk ${email}.`,
+        });
+      }
+    } catch (err: any) {
+      setResetNotice({
+        type: 'error',
+        text: err?.message || 'Terjadi kesalahan sistem saat memproses pemulihan kata sandi.',
+      });
+    } finally {
+      setIsSendingResetEmail(null);
+    }
+  };
+
   return (
     <div className="bg-slate-50 min-h-screen py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
@@ -185,7 +403,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-stretch sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
+            <button
+              onClick={() => setActiveTab('admin_profile')}
+              className={`px-3.5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors border shadow-xs ${
+                activeTab === 'admin_profile'
+                  ? 'bg-amber-500 text-slate-950 border-amber-600'
+                  : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200'
+              }`}
+              title="Edit Profil & Kata Sandi Administrator"
+            >
+              <UserCog className="w-4 h-4 text-amber-600" />
+              <span>Profil & Sandi Admin</span>
+            </button>
+
             <button
               onClick={() => setCreateModalOpen(true)}
               className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors"
@@ -235,6 +466,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
 
         {/* Tab Controls */}
         <div className="border-b border-slate-200 flex space-x-4 sm:space-x-6 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setActiveTab('admin_profile')}
+            className={`pb-3 text-sm font-semibold transition-colors flex items-center gap-2 border-b-2 whitespace-nowrap ${
+              activeTab === 'admin_profile'
+                ? 'border-red-600 text-red-900'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <UserCog className="w-4 h-4 text-amber-600" />
+            <span>Profil & Sandi Pengelola</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('pending_writers')}
             className={`pb-3 text-sm font-semibold transition-colors flex items-center gap-2 border-b-2 whitespace-nowrap ${
@@ -317,6 +560,362 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
           <div className="p-4 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 text-xs font-medium flex items-center justify-between">
             <span>{backupNotice}</span>
             <button onClick={() => setBackupNotice(null)} className="text-amber-800 font-bold ml-2">×</button>
+          </div>
+        )}
+
+        {/* TAB 0: ADMIN PROFILE & PASSWORD MANAGEMENT */}
+        {activeTab === 'admin_profile' && (
+          <div className="space-y-6">
+            {/* Header Description Box */}
+            <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 rounded-2xl p-5 border border-amber-200 shadow-xs flex flex-col sm:flex-row items-start gap-4">
+              <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-800 shrink-0">
+                <UserCog className="w-6 h-6 text-amber-700" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-amber-950 text-sm font-serif-editorial">
+                    Profil & Kredensial Keamanan Administrator Portal
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-200 text-amber-900">
+                    Otoritas Penuh
+                  </span>
+                </div>
+                <p className="text-xs text-amber-900 leading-relaxed">
+                  Perbarui identitas publik, biodata, dan kontak WhatsApp pimpinan redaksi Rumah Dessa Mentari, serta ubah kata sandi akun administrator secara berkala untuk menjaga integritas keamanan sistem.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Form Profil Administrator */}
+              <div className="lg:col-span-7 bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+                <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-serif-editorial text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <UserCog className="w-5 h-5 text-amber-600" />
+                      <span>Identitas & Kontak Pengelola</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Data ini tampil pada publikasi naskah resmi dan informasi pengelola portal.
+                    </p>
+                  </div>
+                </div>
+
+                {adminProfileMessage && (
+                  <div
+                    className={`p-3.5 rounded-xl text-xs font-semibold ${
+                      adminProfileMessage.type === 'success'
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        : 'bg-rose-50 text-rose-800 border border-rose-200'
+                    }`}
+                  >
+                    {adminProfileMessage.text}
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveAdminProfile} className="space-y-5">
+                  {/* Avatar Upload & Presets */}
+                  <div className="space-y-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Foto Profil / Pasfoto Resmi Pengelola
+                    </label>
+
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                      <div className="relative group shrink-0">
+                        <img
+                          src={adminAvatarUrl}
+                          alt={adminName}
+                          className="w-20 h-20 rounded-2xl object-cover border-2 border-amber-500 shadow-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => adminFileInputRef.current?.click()}
+                          className="absolute inset-0 rounded-2xl bg-black/40 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-xs font-bold gap-1"
+                          title="Ganti Foto"
+                        >
+                          <Camera className="w-5 h-5 text-amber-300" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-2 text-center sm:text-left flex-1">
+                        <input
+                          ref={adminFileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAdminPhotoUpload}
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => adminFileInputRef.current?.click()}
+                          className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs border border-slate-300 shadow-2xs inline-flex items-center gap-1.5"
+                        >
+                          <Upload className="w-4 h-4 text-amber-600" />
+                          <span>Pilih Foto dari Perangkat</span>
+                        </button>
+                        <p className="text-[11px] text-slate-500">
+                          Format JPG, PNG, atau WebP. Otomatis dikompresi agar ringan dan tajam.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Preset Avatars Gallery */}
+                    <div className="pt-2 border-t border-slate-200/60">
+                      <span className="block text-[11px] font-bold text-slate-600 mb-2">
+                        Atau pilih avatar presisi standar redaksi:
+                      </span>
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                        {ADMIN_PRESET_AVATARS.map((preset, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setAdminAvatarUrl(preset.url)}
+                            className={`p-1 rounded-xl border transition-all text-center group ${
+                              adminAvatarUrl === preset.url
+                                ? 'border-amber-500 ring-2 ring-amber-400 bg-amber-50/50'
+                                : 'border-slate-200 hover:border-slate-300 bg-white'
+                            }`}
+                            title={preset.name}
+                          >
+                            <img
+                              src={preset.url}
+                              alt={preset.name}
+                              className="w-full aspect-square rounded-lg object-cover"
+                            />
+                            <span className="block text-[9px] font-medium text-slate-600 truncate mt-1">
+                              {preset.name.split(' ')[0]}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Input Fields */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Nama Lengkap & Gelar *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={adminName}
+                        onChange={e => setAdminName(e.target.value)}
+                        placeholder="Contoh: Deni Santoso, M.M."
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-amber-500 text-xs font-semibold text-slate-900 bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Alamat Email Akun
+                      </label>
+                      <input
+                        type="email"
+                        disabled
+                        value={currentUser.email || 'santosodeni3@gmail.com'}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-500 text-xs font-medium cursor-not-allowed"
+                      />
+                      <span className="text-[10px] text-emerald-700 font-bold mt-1 block">
+                        ✓ Email Administrator Terverifikasi
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Nomor WhatsApp Resmi Pengelola
+                      </label>
+                      <input
+                        type="text"
+                        value={adminPhone}
+                        onChange={e => setAdminPhone(e.target.value)}
+                        placeholder="Contoh: 6287879069404"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-amber-500 text-xs text-slate-900 bg-white"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Format internasional (awali dengan 62 tanpa spasi atau tanda +).
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Tautan Portofolio / Profil Akademis (Opsional)
+                      </label>
+                      <input
+                        type="url"
+                        value={adminPortfolioUrl}
+                        onChange={e => setAdminPortfolioUrl(e.target.value)}
+                        placeholder="https://scholar.google.com/..."
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-amber-500 text-xs text-slate-900 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Biografi Singkat / Amanat Pimpinan Redaksi
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={adminBio}
+                      onChange={e => setAdminBio(e.target.value)}
+                      placeholder="Uraikan dedikasi kepenulisan, rekam jejak, atau peran Anda sebagai pimpinan redaksi Rumah Dessa Mentari..."
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-amber-500 text-xs leading-relaxed text-slate-900 bg-white"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-end">
+                    <button
+                      type="submit"
+                      disabled={isSavingAdminProfile}
+                      className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all disabled:opacity-50"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>{isSavingAdminProfile ? 'Menyimpan...' : 'Simpan Perubahan Profil Pengelola'}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Form Ubah Kata Sandi & Ringkasan Otoritas */}
+              <div className="lg:col-span-5 space-y-6">
+                {/* Card Ubah Sandi */}
+                <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-5">
+                  <div className="border-b border-slate-100 pb-3">
+                    <h3 className="font-serif-editorial text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <KeyRound className="w-5 h-5 text-amber-600" />
+                      <span>Ubah Kata Sandi Akun</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Pembaruan kredensial terenkripsi langsung ke Firebase Auth.
+                    </p>
+                  </div>
+
+                  {passwordMessage && (
+                    <div
+                      className={`p-3.5 rounded-xl text-xs font-semibold ${
+                        passwordMessage.type === 'success'
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                          : 'bg-rose-50 text-rose-800 border border-rose-200'
+                      }`}
+                    >
+                      {passwordMessage.text}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Kata Sandi Saat Ini (Lama) *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showCurrentPassword ? 'text' : 'password'}
+                          required
+                          value={currentPassword}
+                          onChange={e => setCurrentPassword(e.target.value)}
+                          placeholder="Masukkan kata sandi lama Anda"
+                          className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-300 focus:border-amber-500 text-xs text-slate-900 bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                        >
+                          {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Kata Sandi Baru * (Min. 6 Karakter)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showNewPassword ? 'text' : 'password'}
+                          required
+                          value={newPassword}
+                          onChange={e => setNewPassword(e.target.value)}
+                          placeholder="Masukkan kata sandi baru yang kuat"
+                          className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-300 focus:border-amber-500 text-xs text-slate-900 bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                        >
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Ulangi Kata Sandi Baru *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          required
+                          value={confirmPassword}
+                          onChange={e => setConfirmPassword(e.target.value)}
+                          placeholder="Ketik ulang kata sandi baru"
+                          className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-300 focus:border-amber-500 text-xs text-slate-900 bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <button
+                        type="submit"
+                        disabled={isChangingPassword}
+                        className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                      >
+                        <Lock className="w-4 h-4" />
+                        <span>{isChangingPassword ? 'Memproses Sandi...' : 'Perbarui Kata Sandi Administrator'}</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Card Ringkasan Hak Akses & Keamanan */}
+                <div className="bg-slate-900 text-white rounded-2xl p-6 border border-slate-800 space-y-3.5 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-amber-400" />
+                    <h4 className="font-bold text-sm font-serif-editorial">Hak Otoritas & Keamanan Akun</h4>
+                  </div>
+                  <ul className="space-y-2 text-xs text-slate-300">
+                    <li className="flex items-start gap-2">
+                      <span className="text-amber-400 font-bold">✓</span>
+                      <span>Persetujuan pendaftaran penulis baru (Fitur ACC).</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-amber-400 font-bold">✓</span>
+                      <span>Kurasi naskah dan penetapan status artikel terbit.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-amber-400 font-bold">✓</span>
+                      <span>Arsip otomatis seluruh peristiwa ke santosodeni3@gmail.com.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-amber-400 font-bold">✓</span>
+                      <span>Enkripsi kata sandi berbasis Firebase Authentication.</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -450,22 +1049,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
         {/* TAB 2: ALL USERS LIST */}
         {activeTab === 'users' && (
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
-            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="font-serif-editorial text-sm font-bold text-slate-800">
                   Daftar Seluruh Pengguna & Hak Akses
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Admin dapat mengubah status peran kapan saja secara langsung.
+                  Admin dapat mengelola hak akses dan membantu mengirimkan tautan reset kata sandi resmi kepada pengguna.
                 </p>
               </div>
               <button
                 onClick={() => setCreateModalOpen(true)}
-                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs"
+                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs self-start sm:self-auto"
               >
                 + Tambah Akun
               </button>
             </div>
+
+            {resetNotice && (
+              <div
+                className={`p-3 mx-4 my-3 rounded-xl border text-xs flex items-center justify-between gap-2 ${
+                  resetNotice.type === 'success'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    : 'bg-rose-50 border-rose-200 text-rose-800'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {resetNotice.type === 'success' ? (
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  )}
+                  <span>{resetNotice.text}</span>
+                </div>
+                <button
+                  onClick={() => setResetNotice(null)}
+                  className="text-xs font-bold px-2 py-0.5 rounded hover:bg-black/5"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             <div className="divide-y divide-slate-100">
               {allUsers.map(u => (
@@ -495,7 +1119,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
                     {u.approvalStatus === 'pending' && (
                       <button
                         onClick={() => handleApproveWriter(u.id, 'approved', u.name)}
@@ -504,6 +1128,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
                         ACC Akun
                       </button>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleAdminResetPassword(u.email, u.name)}
+                      disabled={isSendingResetEmail === u.email}
+                      title={`Kirimkan tautan reset kata sandi resmi Firebase ke ${u.email}`}
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white hover:bg-amber-50 hover:border-amber-300 text-slate-700 hover:text-amber-800 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                    >
+                      <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+                      <span>{isSendingResetEmail === u.email ? 'Mengirim...' : 'Reset Sandi'}</span>
+                    </button>
+
                     <span className="text-xs text-slate-400 font-medium">Peran:</span>
                     <select
                       value={u.role}

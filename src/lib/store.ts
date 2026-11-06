@@ -19,7 +19,13 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  updateProfile
+  updateProfile,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  sendPasswordResetEmail,
+  signInWithPopup,
+  GoogleAuthProvider
 } from 'firebase/auth';
 import {
   collection,
@@ -111,6 +117,9 @@ function formatAuthError(err: any): string {
   }
   if (code === 'auth/network-request-failed' || message.includes('network-request-failed')) {
     return 'Koneksi jaringan terganggu. Silakan periksa jaringan internet Anda.';
+  }
+  if (code === 'auth/requires-recent-login' || message.includes('requires-recent-login')) {
+    return 'Demi keamanan, pembaruan kata sandi memerlukan Anda keluar dan masuk kembali terlebih dahulu.';
   }
 
   const cleaned = message.replace(/^Firebase:\n?\s*Error\s*\([^)]+\):\s*/i, '').trim();
@@ -420,6 +429,136 @@ export class DmlStore {
       this.notify();
       return { success: true, user: sessionUser };
     } catch (error: any) {
+      return { success: false, error: formatAuthError(error) };
+    }
+  }
+
+  public static async loginWithGoogle(): Promise<{ success: boolean; error?: string; user?: User }> {
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      const firebaseUser = result.user;
+      const cleanEmail = (firebaseUser.email || '').trim().toLowerCase();
+
+      const users = safeGet<any[]>(STORAGE_KEYS.USERS, []);
+      let localMatch = users.find(u => u.email.toLowerCase().trim() === cleanEmail || u.id === firebaseUser.uid);
+
+      const isRootAdmin = cleanEmail === 'santosodeni3@gmail.com' || cleanEmail === 'denisarah26@gmail.com';
+      const role = isRootAdmin ? 'admin' : (localMatch?.role || 'contributor');
+      const approvalStatus = isRootAdmin ? 'approved' : (localMatch?.approvalStatus || 'approved');
+
+      const sessionUser: User = {
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName || localMatch?.name || (isRootAdmin ? 'Deni Santoso, M.M.' : cleanEmail.split('@')[0]),
+        email: cleanEmail,
+        role,
+        approvalStatus,
+        bio: localMatch?.bio || (isRootAdmin ? 'Pimpinan Redaksi & Pengelola Rumah Dessa Mentari.' : 'Penulis dan kontributor di Rumah Dessa Mentari.'),
+        avatarUrl: firebaseUser.photoURL || localMatch?.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+        phone: localMatch?.phone || (isRootAdmin ? '087879069404' : ''),
+        portfolioUrl: localMatch?.portfolioUrl || '',
+        preferredCategories: localMatch?.preferredCategories || [],
+        createdAt: localMatch?.createdAt || new Date().toISOString(),
+      };
+
+      if (!localMatch) {
+        users.push(sessionUser);
+      } else {
+        const idx = users.findIndex(u => u.id === localMatch.id || u.email.toLowerCase().trim() === cleanEmail);
+        if (idx !== -1) users[idx] = { ...users[idx], ...sessionUser };
+      }
+      safeSet(STORAGE_KEYS.USERS, users);
+      safeSet(STORAGE_KEYS.CURRENT_USER, sessionUser);
+
+      try {
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        const cleanDoc = cleanUndefined(sessionUser);
+        await setDoc(userDocRef, cleanDoc, { merge: true });
+        logFirestoreDiag('googleLoginSync', `users/${firebaseUser.uid}`, cleanDoc, true);
+      } catch (cloudErr) {
+        console.warn('Firestore user profile sync warning during Google login:', cloudErr);
+      }
+
+      this.notify();
+      return { success: true, user: sessionUser };
+    } catch (error: any) {
+      return { success: false, error: formatAuthError(error) };
+    }
+  }
+
+  public static async changePassword(
+    currentPasswordPlain: string,
+    newPasswordPlain: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) {
+        return { success: false, error: 'Sesi masuk tidak ditemukan. Silakan masuk terlebih dahulu.' };
+      }
+
+      if (!currentPasswordPlain) {
+        return { success: false, error: 'Silakan masukkan kata sandi saat ini (lama).' };
+      }
+
+      if (!newPasswordPlain || newPasswordPlain.length < 6) {
+        return { success: false, error: 'Kata sandi baru minimal 6 karakter.' };
+      }
+
+      if (currentPasswordPlain === newPasswordPlain) {
+        return { success: false, error: 'Kata sandi baru tidak boleh sama dengan kata sandi lama.' };
+      }
+
+      // Re-authenticate user to permit password modification
+      try {
+        const credential = EmailAuthProvider.credential(user.email, currentPasswordPlain);
+        await reauthenticateWithCredential(user, credential);
+      } catch (authErr: any) {
+        const code = authErr?.code || '';
+        const msg = authErr?.message || String(authErr);
+        if (code === 'auth/wrong-password' || code === 'auth/invalid-credential' || msg.includes('wrong-password') || msg.includes('invalid-credential')) {
+          return { success: false, error: 'Kata sandi saat ini (lama) yang Anda masukkan tidak sesuai.' };
+        }
+        return { success: false, error: formatAuthError(authErr) };
+      }
+
+      // Perform update password in Firebase Auth
+      await updatePassword(user, newPasswordPlain);
+
+      // Audit notification in email log
+      this.sendEmailNotification(
+        'system_security_notice',
+        `[RDM - Keamanan Akun] Pembaruan Kata Sandi (${user.email})`,
+        `Pemberitahuan Sistem Keamanan Rumah Dessa Mentari:\nKata sandi untuk akun pengelola/admin ${user.displayName || user.email} (${user.email}) telah berhasil diperbarui pada ${new Date().toLocaleString('id-ID')}.\n\nJika perubahan ini bukan dilakukan oleh Anda, segera hubungi kontak teknis.`
+      );
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: formatAuthError(error) };
+    }
+  }
+
+  public static async resetPassword(email: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      if (!cleanEmail || !cleanEmail.includes('@')) {
+        return { success: false, error: 'Format alamat email tidak valid. Masukkan email yang benar.' };
+      }
+
+      await sendPasswordResetEmail(auth, cleanEmail);
+
+      this.sendEmailNotification(
+        'system_security_notice',
+        `[RDM - Pemulihan Kata Sandi] Permohonan Reset (${cleanEmail})`,
+        `Pemberitahuan Sistem Keamanan Rumah Dessa Mentari:\nPermohonan pemulihan (reset) kata sandi untuk akun email ${cleanEmail} telah diproses pada ${new Date().toLocaleString('id-ID')}.\nTautan pemulihan resmi Firebase telah dikirim ke kotak masuk email tersebut.`
+      );
+
+      return { success: true };
+    } catch (error: any) {
+      const code = error?.code || '';
+      if (code === 'auth/user-not-found' || String(error).includes('user-not-found')) {
+        return { success: false, error: 'Alamat email tidak ditemukan atau belum terdaftar dalam sistem.' };
+      }
       return { success: false, error: formatAuthError(error) };
     }
   }
@@ -1027,52 +1166,34 @@ export class DmlStore {
   }
 
   public static getWriterNotifications(userId: string): WriterNotification[] {
-    let notifications = this.cachedGet<WriterNotification[]>(STORAGE_KEYS.NOTIFICATIONS, []);
-    
-    // Auto-seed existing decisions for this user if no notifications exist yet
-    const userNotifs = notifications.filter(n => n.userId === userId);
-    if (userNotifs.length === 0) {
-      const articles = this.cachedGet<Article[]>(STORAGE_KEYS.ARTICLES, []);
-      const authorArticles = articles.filter(a => a.authorId === userId);
-      const seeded: WriterNotification[] = [];
-
-      for (const art of authorArticles) {
-        if (art.status === 'published' || art.status === 'approved') {
-          seeded.push({
-            id: 'notif-seed-' + art.id + '-app',
-            userId,
-            articleId: art.id,
-            articleTitle: art.title,
-            type: 'approved',
-            message: `Alhamdulillah! Naskah Anda "${art.title}" telah disetujui oleh Meja Redaksi dan resmi diterbitkan di portal.`,
-            isRead: false,
-            createdAt: art.publishedAt || art.reviewedAt || art.updatedAt || new Date().toISOString(),
-          });
-        } else if (art.status === 'revision_requested') {
-          seeded.push({
-            id: 'notif-seed-' + art.id + '-rev',
-            userId,
-            articleId: art.id,
-            articleTitle: art.title,
-            type: 'revision_requested',
-            message: `Meja Redaksi telah menelaah naskah "${art.title}" dan meminta perbaikan. Catatan: ${art.revisionNotes || 'Mohon periksa masukan redaksi.'}`,
-            revisionNotes: art.revisionNotes,
-            isRead: false,
-            createdAt: art.reviewedAt || art.updatedAt || new Date().toISOString(),
-          });
-        }
-      }
-
-      if (seeded.length > 0) {
-        notifications = [...seeded, ...notifications];
-        this.cachedSet(STORAGE_KEYS.NOTIFICATIONS, notifications);
-        return seeded;
-      }
-    }
-
+    const notifications = this.cachedGet<WriterNotification[]>(STORAGE_KEYS.NOTIFICATIONS, []);
     return notifications
       .filter(n => n.userId === userId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  public static async refreshNotificationsFromCloud(userId: string): Promise<WriterNotification[]> {
+    try {
+      const q = query(collection(db, 'notifications'), where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const cloudNotifs: WriterNotification[] = [];
+        snapshot.forEach(docSnap => cloudNotifs.push(docSnap.data() as WriterNotification));
+        
+        const localNotifs = safeGet<WriterNotification[]>(STORAGE_KEYS.NOTIFICATIONS, []);
+        const mergedMap = new Map<string, WriterNotification>();
+        localNotifs.forEach(n => mergedMap.set(n.id, n));
+        cloudNotifs.forEach(n => mergedMap.set(n.id, n));
+        
+        const finalNotifs = Array.from(mergedMap.values());
+        this.cachedSet(STORAGE_KEYS.NOTIFICATIONS, finalNotifs);
+        this.notify();
+        return finalNotifs.filter(n => n.userId === userId);
+      }
+    } catch (e) {
+      console.warn('Could not refresh notifications from Firestore:', e);
+    }
+    return this.getWriterNotifications(userId);
   }
 
   public static addWriterNotification(data: Omit<WriterNotification, 'id' | 'createdAt' | 'isRead'>): WriterNotification {
@@ -1090,15 +1211,26 @@ export class DmlStore {
     };
     notifs.unshift(newNotif);
     this.cachedSet(STORAGE_KEYS.NOTIFICATIONS, notifs);
+
+    // Sync to Cloud
+    const cleanDoc = cleanUndefined(newNotif);
+    setDoc(doc(db, 'notifications', newNotif.id), cleanDoc, { merge: true })
+      .catch(e => console.warn('Cloud store notification sync warning:', e));
+
     return newNotif;
   }
 
-  public static markNotificationAsRead(id: string): void {
+  public static async markNotificationAsRead(id: string): Promise<void> {
     const notifs = this.cachedGet<WriterNotification[]>(STORAGE_KEYS.NOTIFICATIONS, []);
     const idx = notifs.findIndex(n => n.id === id);
     if (idx !== -1) {
       notifs[idx].isRead = true;
       this.cachedSet(STORAGE_KEYS.NOTIFICATIONS, notifs);
+      try {
+        await setDoc(doc(db, 'notifications', id), { isRead: true }, { merge: true });
+      } catch (e) {
+        console.warn('Could not sync notification read status to cloud:', e);
+      }
       this.notify();
     }
   }
@@ -1359,7 +1491,45 @@ export class DmlStore {
     };
     list.push(newItem);
     safeSet(STORAGE_KEYS.BOOKS, list);
+
+    // Sync to Cloud
+    const cleanDoc = cleanUndefined(newItem);
+    setDoc(doc(db, 'books', newItem.id), cleanDoc, { merge: true })
+      .catch(e => console.warn('Cloud store book proposal sync warning:', e));
+
     this.notify();
+  }
+
+  public static async refreshBooksFromCloud(): Promise<BookCatalogItem[]> {
+    try {
+      const q = query(collection(db, 'books'));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const cloudBooks: BookCatalogItem[] = [];
+        snapshot.forEach(docSnap => cloudBooks.push(docSnap.data() as BookCatalogItem));
+        this.cachedSet(STORAGE_KEYS.BOOKS, cloudBooks);
+        this.notify();
+        return cloudBooks;
+      }
+    } catch (e) {
+      console.warn('Could not refresh books from Firestore:', e);
+    }
+    return this.getBooks();
+  }
+
+  public static async updateBookStatus(id: string, status: BookCatalogItem['status']): Promise<void> {
+    const list = this.getBooks();
+    const idx = list.findIndex(b => b.id === id);
+    if (idx !== -1) {
+      list[idx].status = status;
+      this.cachedSet(STORAGE_KEYS.BOOKS, list);
+      try {
+        await setDoc(doc(db, 'books', id), { status }, { merge: true });
+      } catch (e) {
+        console.warn('Could not sync book status update to cloud:', e);
+      }
+      this.notify();
+    }
   }
 
   public static exportAllData(): string {
@@ -1479,6 +1649,28 @@ export class DmlStore {
     return allComments
       .filter(c => c.articleId === articleId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  public static async refreshCommentsFromCloud(articleId: string): Promise<ArticleComment[]> {
+    try {
+      const q = query(collection(db, 'comments'), where('articleId', '==', articleId));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const cloudComments: ArticleComment[] = [];
+        snapshot.forEach(docSnap => cloudComments.push(docSnap.data() as ArticleComment));
+        
+        const localComments = safeGet<ArticleComment[]>(STORAGE_KEYS.COMMENTS, []);
+        const otherComments = localComments.filter(c => c.articleId !== articleId);
+        const finalComments = [...cloudComments, ...otherComments];
+        
+        this.cachedSet(STORAGE_KEYS.COMMENTS, finalComments);
+        this.notify();
+        return cloudComments;
+      }
+    } catch (e) {
+      console.warn('Could not refresh comments from Firestore:', e);
+    }
+    return this.getCommentsForArticle(articleId);
   }
 
   public static async addComment(

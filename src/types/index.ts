@@ -45,7 +45,7 @@ export interface EmailNotificationLog {
   recipient: string; // santosodeni3@gmail.com
   subject: string;
   body: string;
-  type: 'new_writer_registration' | 'writer_acc' | 'consultation_request' | 'new_article_submitted';
+  type: 'new_writer_registration' | 'writer_acc' | 'consultation_request' | 'new_article_submitted' | 'system_security_notice';
   sentAt: string;
   status: 'delivered' | 'queued';
 }

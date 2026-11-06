@@ -29,6 +29,7 @@ import { PolicyPages } from './components/PolicyPages';
 import { AuthModal } from './components/AuthModal';
 import { CorrectionModal } from './components/CorrectionModal';
 import { SearchModal } from './components/SearchModal';
+import { ShareModal } from './components/ShareModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { Leaderboard } from './components/Leaderboard';
 
@@ -38,10 +39,12 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<ArticleCategory | 'Semua'>('Semua');
   const [activeArticle, setActiveArticle] = useState<Article | null>(null);
   const [contributorSubTab, setContributorSubTab] = useState<'daftar' | 'tulis' | 'profil' | 'pedoman' | 'notifikasi'>('daftar');
+  const [adminSubTab, setAdminSubTab] = useState<'pending_writers' | 'users' | 'consultations' | 'settings' | 'email_logs' | 'backup' | 'admin_profile'>('pending_writers');
 
   // Modals
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const [correctionArticle, setCorrectionArticle] = useState<Article | null>(null);
 
   // Articles & Settings
@@ -132,6 +135,23 @@ export default function App() {
         setContributorSubTab('daftar');
       }
       setCurrentView('dashboard-kontributor');
+    } else if (view === 'dashboard-admin') {
+      if (param === 'admin_profile' || param === 'profil') {
+        setAdminSubTab('admin_profile');
+      } else if (param === 'users') {
+        setAdminSubTab('users');
+      } else if (param === 'settings') {
+        setAdminSubTab('settings');
+      } else if (param === 'consultations') {
+        setAdminSubTab('consultations');
+      } else if (param === 'email_logs') {
+        setAdminSubTab('email_logs');
+      } else if (param === 'backup') {
+        setAdminSubTab('backup');
+      } else {
+        setAdminSubTab('pending_writers');
+      }
+      setCurrentView('dashboard-admin');
     } else {
       setCurrentView(view);
     }
@@ -165,6 +185,7 @@ export default function App() {
           setCurrentView('beranda');
         }}
         onOpenSearch={() => setSearchModalOpen(true)}
+        onOpenShare={() => setShareModalOpen(true)}
       />
 
       {/* MAIN VIEW SWITCHER */}
@@ -181,6 +202,7 @@ export default function App() {
               onNavigate={handleNavigate}
               onOpenAuth={() => setAuthModalOpen(true)}
               isLoggedIn={!!currentUser}
+              onOpenShare={() => setShareModalOpen(true)}
             />
 
             {/* 2. Artikel Pilihan (Featured Article) */}
@@ -518,7 +540,7 @@ export default function App() {
         {/* VIEW: DASHBOARD ADMIN */}
         {currentView === 'dashboard-admin' && (
           currentUser && currentUser.role === 'admin' ? (
-            <AdminDashboard currentUser={currentUser} />
+            <AdminDashboard currentUser={currentUser} initialTab={adminSubTab} />
           ) : (
             <div className="py-20 text-center max-w-md mx-auto px-4 space-y-4">
               <h2 className="font-serif-editorial text-2xl font-bold text-slate-900">
@@ -559,6 +581,7 @@ export default function App() {
         onNavigate={handleNavigate}
         whatsappNumber={settings.whatsappNumber}
         contactEmail={settings.contactEmail}
+        onOpenShare={() => setShareModalOpen(true)}
       />
 
       {/* POPUP MODALS */}
@@ -574,6 +597,11 @@ export default function App() {
         isOpen={searchModalOpen}
         onClose={() => setSearchModalOpen(false)}
         onSelectArticle={handleSelectArticle}
+      />
+
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
       />
 
       <CorrectionModal

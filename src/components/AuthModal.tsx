@@ -16,6 +16,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
+  // Forgot password form
+  const [forgotEmail, setForgotEmail] = useState('');
+
   // Register form
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
@@ -47,6 +50,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setErrorMessage(null);
+    setLoading(true);
+    const res = await DmlStore.loginWithGoogle();
+    setLoading(false);
+    if (res.success) {
+      onSuccess();
+      onClose();
+    } else {
+      setErrorMessage(res.error || 'Gagal masuk dengan Google.');
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -71,13 +87,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     }
   };
 
-  const handleForgotPassword = (e: React.FormEvent) => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSuccessMessage('Tautan pemulihan kata sandi telah dikirimkan ke email Anda.');
-    setTimeout(() => {
-      setSuccessMessage(null);
-      setMode('login');
-    }, 2500);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setLoading(true);
+
+    const res = await DmlStore.resetPassword(forgotEmail);
+    setLoading(false);
+    if (res.success) {
+      setSuccessMessage(
+        `Tautan pemulihan kata sandi telah dikirim ke ${forgotEmail}. Silakan periksa Kotak Masuk (Inbox) atau folder Spam/Junk di email Anda untuk menetapkan kata sandi baru.`
+      );
+    } else {
+      setErrorMessage(res.error || 'Gagal mengirim tautan pemulihan kata sandi. Pastikan email terdaftar.');
+    }
   };
 
   return (
@@ -171,7 +195,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                 </label>
                 <button
                   type="button"
-                  onClick={() => setMode('forgot')}
+                  onClick={() => {
+                    setMode('forgot');
+                    setErrorMessage(null);
+                    setSuccessMessage(null);
+                    if (loginEmail) {
+                      setForgotEmail(loginEmail);
+                    }
+                  }}
                   className="text-[11px] text-amber-700 hover:underline font-medium"
                 >
                   Lupa Sandi?
@@ -196,6 +227,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
               className="w-full py-2.5 rounded-xl bg-[#0F1E36] hover:bg-[#1B365D] text-white font-bold text-xs shadow-xs transition-colors"
             >
               {loading ? 'Memproses...' : 'Masuk ke Portal'}
+            </button>
+
+            <div className="relative my-2.5">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200" />
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase">
+                <span className="bg-white px-2 text-slate-400 font-semibold">Atau</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="w-full py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-800 font-bold text-xs shadow-2xs transition-colors flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.25 21.36 7.33 24 12 24z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.25 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                />
+              </svg>
+              <span>Masuk dengan Akun Google</span>
             </button>
           </form>
         )}
@@ -344,32 +411,107 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         {/* FORGOT PASSWORD FORM */}
         {mode === 'forgot' && (
           <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs leading-relaxed">
+              <p className="font-bold mb-1">Panduan Pemulihan Kata Sandi:</p>
+              <p className="text-[11px] text-amber-800">
+                Masukkan alamat email yang Anda gunakan saat mendaftar. Sistem akan mengirimkan tautan resmi pemulihan kata sandi ke kotak masuk email Anda.
+              </p>
+            </div>
+
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                Masukkan Email Terdaftar
+                Alamat Email Terdaftar *
               </label>
-              <input
-                type="email"
-                required
-                placeholder="email@anda.com"
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:border-amber-500"
-              />
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="email"
+                  required
+                  value={forgotEmail}
+                  onChange={e => setForgotEmail(e.target.value)}
+                  placeholder="nama@email.com"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                Pilih Cepat Akun Deni Santoso, M.M.:
+              </label>
+              <div className="flex flex-col sm:flex-row gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setForgotEmail('santosodeni3@gmail.com')}
+                  className={`flex-1 p-2 rounded-lg text-xs font-medium text-left transition-colors border ${
+                    forgotEmail === 'santosodeni3@gmail.com'
+                      ? 'bg-amber-500 text-slate-950 border-amber-600 font-bold'
+                      : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200'
+                  }`}
+                >
+                  <span className="block font-bold">santosodeni3@gmail.com</span>
+                  <span className="text-[10px] text-slate-500 font-normal">Email Utama Redaksi RDM</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForgotEmail('denisarah26@gmail.com')}
+                  className={`flex-1 p-2 rounded-lg text-xs font-medium text-left transition-colors border ${
+                    forgotEmail === 'denisarah26@gmail.com'
+                      ? 'bg-amber-500 text-slate-950 border-amber-600 font-bold'
+                      : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200'
+                  }`}
+                >
+                  <span className="block font-bold">denisarah26@gmail.com</span>
+                  <span className="text-[10px] text-slate-500 font-normal">Email Admin Deni</span>
+                </button>
+              </div>
             </div>
 
             <button
               type="submit"
-              className="w-full py-2.5 rounded-xl bg-[#0F1E36] text-white font-bold text-xs"
+              disabled={loading}
+              className="w-full py-2.5 rounded-xl bg-[#0F1E36] hover:bg-[#1B365D] text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2"
             >
-              Kirim Tautan Pemulihan
+              <Lock className="w-4 h-4 text-amber-400" />
+              <span>{loading ? 'Mengirim Tautan...' : 'Kirim Tautan Pemulihan Kata Sandi'}</span>
             </button>
 
             <button
               type="button"
-              onClick={() => setMode('login')}
-              className="w-full text-center text-xs text-slate-500 hover:underline"
+              onClick={() => {
+                setMode('login');
+                setErrorMessage(null);
+                setSuccessMessage(null);
+              }}
+              className="w-full py-2 rounded-xl text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium transition-colors text-center"
             >
-              Kembali ke Menu Masuk
+              ← Kembali ke Menu Masuk
             </button>
+
+            <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-500 space-y-1">
+              <p className="font-semibold text-slate-700">Mengalami kendala akun atau lupa email?</p>
+              <p>
+                Hubungi Pengelola / Admin: <strong>Deni Santoso, M.M.</strong>
+              </p>
+              <div className="flex flex-col gap-1 text-[11px] text-amber-800 font-medium mt-1">
+                <a
+                  href="https://wa.me/6287879069404?text=Halo%20Admin%20Rumah%20Dessa%20Mentari,%20saya%20mengalami%20kendala%20lupa%20kata%20sandi%20akun."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 hover:underline text-emerald-700"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>WhatsApp: +62 878-7906-9404</span>
+                </a>
+                <a
+                  href="mailto:santosodeni3@gmail.com?subject=Bantuan%20Reset%20Sandi%20Rumah%20Dessa%20Mentari"
+                  className="flex items-center gap-1.5 hover:underline text-amber-900"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Email: santosodeni3@gmail.com</span>
+                </a>
+              </div>
+            </div>
           </form>
         )}
       </div>

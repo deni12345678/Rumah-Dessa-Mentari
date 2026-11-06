@@ -1,13 +1,14 @@
 import React from 'react';
-import { BookOpen, Compass, Edit3, ArrowRight, Sparkles, Feather } from 'lucide-react';
+import { BookOpen, Compass, Edit3, ArrowRight, Sparkles, Feather, Share2 } from 'lucide-react';
 
 interface HeroProps {
   onNavigate: (view: string, param?: string) => void;
   onOpenAuth: () => void;
   isLoggedIn: boolean;
+  onOpenShare?: () => void;
 }
 
-export const Hero: React.FC<HeroProps> = ({ onNavigate, onOpenAuth, isLoggedIn }) => {
+export const Hero: React.FC<HeroProps> = ({ onNavigate, onOpenAuth, isLoggedIn, onOpenShare }) => {
   return (
     <section className="relative min-h-[85vh] flex items-center overflow-hidden bg-slate-950 text-white">
       {/* Background Image with Scrim */}
@@ -76,6 +77,17 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onOpenAuth, isLoggedIn }
               <span>Layanan Penulisan</span>
               <ArrowRight className="w-4 h-4" />
             </button>
+
+            {onOpenShare && (
+              <button
+                onClick={onOpenShare}
+                className="px-6 py-4 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold text-sm transition-all flex items-center gap-2.5"
+                title="Bagikan tautan resmi berlogo"
+              >
+                <Share2 className="w-4 h-4 text-amber-400" />
+                <span>Bagikan Link Berlogo</span>
+              </button>
+            )}
           </div>
 
           {/* Unboxed Statistics Strip */}

@@ -239,8 +239,8 @@ service cloud.firestore {
     // 4. KOLEKSI PERMOHONAN KONSULTASI (consultations)
     // ==============================================================
     match /consultations/{consultationId} {
-      // Pembacaan permohonan konsultasi
-      allow get, list: if true;
+      // Hanya staf berwenang yang dapat melihat data klien
+      allow get, list: if isEditorOrAdmin();
 
       // Publik dapat mengirim permohonan konsultasi dengan validasi ketat
       allow create: if request.resource.data.id == consultationId &&
@@ -258,10 +258,9 @@ service cloud.firestore {
           'wordCountEstimate', 'notes', 'status', 'createdAt'
         ]);
 
-      // Pembaruan konsultasi:
-      // Hanya boleh memperbarui field status ke nilai yang sah ('new', 'contacted', 'completed').
-      // Dilarang keras mengubah identitas klien, isi konsultasi, ID dokumen, atau waktu pembuatan.
-      allow update: if request.resource.data.id == resource.data.id &&
+      // Pembaruan konsultasi: Hanya Admin/Editor untuk mengubah status
+      allow update: if isEditorOrAdmin() &&
+        request.resource.data.id == resource.data.id &&
         request.resource.data.clientName == resource.data.clientName &&
         request.resource.data.email == resource.data.email &&
         request.resource.data.whatsapp == resource.data.whatsapp &&
@@ -271,7 +270,6 @@ service cloud.firestore {
         request.resource.data.status in ['new', 'contacted', 'completed'] &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
 
-      // Penghapusan data konsultasi HANYA boleh dilakukan oleh Administrator Utama
       allow delete: if isAdmin();
     }
 
@@ -279,10 +277,9 @@ service cloud.firestore {
     // 5. KOLEKSI LAPORAN KOREKSI / RALAT (corrections)
     // ==============================================================
     match /corrections/{correctionId} {
-      // Pembacaan laporan ralat
-      allow get, list: if true;
+      // Hanya staf berwenang yang dapat melihat laporan koreksi
+      allow get, list: if isEditorOrAdmin();
 
-      // Publik dapat mengirim laporan ralat dengan validasi ketat
       allow create: if request.resource.data.id == correctionId &&
         request.resource.data.articleId is string && request.resource.data.articleId.size() >= 3 && request.resource.data.articleId.size() <= 100 &&
         request.resource.data.articleTitle is string && request.resource.data.articleTitle.size() <= 200 &&
@@ -298,10 +295,8 @@ service cloud.firestore {
           'issueType', 'description', 'sourceEvidence', 'status', 'createdAt'
         ]);
 
-      // Pembaruan laporan koreksi:
-      // Hanya boleh memperbarui status ke nilai yang sah ('pending', 'resolved', 'dismissed').
-      // Dilarang keras mengubah artikel terkait, identitas pelapor, isi laporan, bukti, ID, atau waktu pembuatan.
-      allow update: if request.resource.data.id == resource.data.id &&
+      allow update: if isEditorOrAdmin() &&
+        request.resource.data.id == resource.data.id &&
         request.resource.data.articleId == resource.data.articleId &&
         request.resource.data.articleTitle == resource.data.articleTitle &&
         request.resource.data.reporterName == resource.data.reporterName &&
@@ -312,12 +307,32 @@ service cloud.firestore {
         request.resource.data.status in ['pending', 'resolved', 'dismissed'] &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
 
-      // Penghapusan data laporan koreksi HANYA boleh dilakukan oleh Administrator Utama
       allow delete: if isAdmin();
     }
 
     // ==============================================================
-    // 6. DEFAULT DENY
+    // 6. KOLEKSI KOMENTAR (comments)
+    // ==============================================================
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if request.resource.data.id == commentId &&
+                       request.resource.data.articleId is string &&
+                       request.resource.data.content is string &&
+                       request.resource.data.content.size() >= 5;
+      allow update, delete: if isEditorOrAdmin();
+    }
+
+    // ==============================================================
+    // 7. KOLEKSI PROPOSAL BUKU (books)
+    // ==============================================================
+    match /books/{bookId} {
+      allow read: if isEditorOrAdmin() || resource.data.status in ['koleksi_kurasi', 'segera_terbit'];
+      allow create: if request.resource.data.id == bookId;
+      allow update, delete: if isEditorOrAdmin();
+    }
+
+    // ==============================================================
+    // 8. DEFAULT DENY
     // ==============================================================
     match /{document=**} {
       allow read, write: if false;

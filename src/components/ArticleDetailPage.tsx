@@ -87,6 +87,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
 
   useEffect(() => {
     setComments(DmlStore.getCommentsForArticle(article.id));
+    DmlStore.refreshCommentsFromCloud(article.id).catch(() => {});
     const unsubscribe = DmlStore.subscribe(() => {
       setComments(DmlStore.getCommentsForArticle(article.id));
     });

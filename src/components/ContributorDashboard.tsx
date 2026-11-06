@@ -32,7 +32,10 @@ import {
   Maximize2,
   Bell,
   BellRing,
-  CheckCheck
+  CheckCheck,
+  Lock,
+  KeyRound,
+  EyeOff
 } from 'lucide-react';
 import { Article, ArticleCategory, ArticleStatus, User, WriterNotification } from '../types';
 import { CATEGORIES_LIST } from './Header';
@@ -217,6 +220,7 @@ export const ContributorDashboard: React.FC<ContributorDashboardProps> = ({
   // Subscribe to real-time notifications
   useEffect(() => {
     setNotifications(DmlStore.getWriterNotifications(currentUser.id));
+    DmlStore.refreshNotificationsFromCloud(currentUser.id).catch(() => {});
     const unsubscribe = DmlStore.subscribe(() => {
       setNotifications(DmlStore.getWriterNotifications(currentUser.id));
     });
@@ -264,6 +268,63 @@ export const ContributorDashboard: React.FC<ContributorDashboardProps> = ({
   const [profileSuccessMsg, setProfileSuccessMsg] = useState<string | null>(null);
   const [profileErrorMsg, setProfileErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Writer Password Form States
+  const [writerCurrentPassword, setWriterCurrentPassword] = useState('');
+  const [writerNewPassword, setWriterNewPassword] = useState('');
+  const [writerConfirmPassword, setWriterConfirmPassword] = useState('');
+  const [showWriterCurrentPassword, setShowWriterCurrentPassword] = useState(false);
+  const [showWriterNewPassword, setShowWriterNewPassword] = useState(false);
+  const [showWriterConfirmPassword, setShowWriterConfirmPassword] = useState(false);
+  const [isWriterChangingPassword, setIsWriterChangingPassword] = useState(false);
+  const [writerPasswordMessage, setWriterPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleWriterChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isWriterChangingPassword) return;
+    setWriterPasswordMessage(null);
+
+    if (!writerCurrentPassword) {
+      setWriterPasswordMessage({ type: 'error', text: 'Silakan masukkan kata sandi saat ini (lama).' });
+      return;
+    }
+
+    if (!writerNewPassword || writerNewPassword.length < 6) {
+      setWriterPasswordMessage({ type: 'error', text: 'Kata sandi baru minimal 6 karakter.' });
+      return;
+    }
+
+    if (writerNewPassword !== writerConfirmPassword) {
+      setWriterPasswordMessage({ type: 'error', text: 'Konfirmasi kata sandi baru tidak cocok. Periksa kembali pengetikan Anda.' });
+      return;
+    }
+
+    if (writerCurrentPassword === writerNewPassword) {
+      setWriterPasswordMessage({ type: 'error', text: 'Kata sandi baru tidak boleh sama dengan kata sandi saat ini.' });
+      return;
+    }
+
+    setIsWriterChangingPassword(true);
+    try {
+      const res = await DmlStore.changePassword(writerCurrentPassword, writerNewPassword);
+      if (res.success) {
+        setWriterPasswordMessage({
+          type: 'success',
+          text: 'Alhamdulillah! Kata sandi akun Anda berhasil diperbarui dengan aman.',
+        });
+        setWriterCurrentPassword('');
+        setWriterNewPassword('');
+        setWriterConfirmPassword('');
+        setTimeout(() => setWriterPasswordMessage(null), 5000);
+      } else {
+        setWriterPasswordMessage({ type: 'error', text: res.error || 'Gagal mengubah kata sandi.' });
+      }
+    } catch (err: any) {
+      setWriterPasswordMessage({ type: 'error', text: err?.message || 'Terjadi kesalahan sistem saat memperbarui kata sandi.' });
+    } finally {
+      setIsWriterChangingPassword(false);
+    }
+  };
 
   // Sync profile form when currentUser.id changes
   const prevUserIdRef = useRef<string>(currentUser.id);
@@ -2316,6 +2377,119 @@ export const ContributorDashboard: React.FC<ContributorDashboardProps> = ({
                         <span>Simpan Perubahan Profil</span>
                       </>
                     )}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Password Change Card for Writer */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-5">
+              <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="w-5 h-5 text-amber-600" />
+                    <h3 className="font-serif-editorial text-lg font-bold text-slate-900">
+                      Keamanan Akun & Ubah Kata Sandi
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Gunakan kata sandi yang aman dan tidak mudah ditebak untuk melindungi draf serta naskah Anda.
+                  </p>
+                </div>
+              </div>
+
+              {writerPasswordMessage && (
+                <div
+                  className={`p-3.5 rounded-xl text-xs font-semibold ${
+                    writerPasswordMessage.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-800 border border-rose-200'
+                  }`}
+                >
+                  {writerPasswordMessage.text}
+                </div>
+              )}
+
+              <form onSubmit={handleWriterChangePassword} className="space-y-4 max-w-xl">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Kata Sandi Saat Ini (Lama) *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showWriterCurrentPassword ? 'text' : 'password'}
+                      required
+                      value={writerCurrentPassword}
+                      onChange={e => setWriterCurrentPassword(e.target.value)}
+                      placeholder="Masukkan kata sandi lama Anda"
+                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-300 focus:border-amber-500 text-xs text-slate-900 bg-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowWriterCurrentPassword(!showWriterCurrentPassword)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                    >
+                      {showWriterCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Kata Sandi Baru * (Min. 6 Karakter)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showWriterNewPassword ? 'text' : 'password'}
+                        required
+                        value={writerNewPassword}
+                        onChange={e => setWriterNewPassword(e.target.value)}
+                        placeholder="Kata sandi baru"
+                        className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-300 focus:border-amber-500 text-xs text-slate-900 bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowWriterNewPassword(!showWriterNewPassword)}
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                      >
+                        {showWriterNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Ulangi Kata Sandi Baru *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showWriterConfirmPassword ? 'text' : 'password'}
+                        required
+                        value={writerConfirmPassword}
+                        onChange={e => setWriterConfirmPassword(e.target.value)}
+                        placeholder="Ketik ulang kata sandi baru"
+                        className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-300 focus:border-amber-500 text-xs text-slate-900 bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowWriterConfirmPassword(!showWriterConfirmPassword)}
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                      >
+                        {showWriterConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isWriterChangingPassword}
+                    className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs flex items-center gap-2 transition-all disabled:opacity-50"
+                  >
+                    <Lock className="w-4 h-4 text-amber-400" />
+                    <span>{isWriterChangingPassword ? 'Memproses Sandi...' : 'Perbarui Kata Sandi Akun'}</span>
                   </button>
                 </div>
               </form>

@@ -1,16 +1,18 @@
 import React from 'react';
 import { BrandLogo } from './BrandLogo';
-import { BookOpen, Mail, MapPin, Phone, ShieldCheck, Heart, Sparkles } from 'lucide-react';
+import { BookOpen, Mail, MapPin, Phone, ShieldCheck, Heart, Sparkles, Share2 } from 'lucide-react';
 import { DmlStore } from '../lib/store';
 
 interface FooterProps {
   onNavigate: (view: string, param?: string) => void;
   whatsappNumber?: string;
   contactEmail?: string;
+  onOpenShare?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onNavigate,
+  onOpenShare,
 }) => {
   const settings = DmlStore.getSettings();
   const contactEmail = settings.contactEmail || 'dessamentarilangit@gmail.com';
@@ -33,12 +35,23 @@ export const Footer: React.FC<FooterProps> = ({
               </p>
             </div>
           </div>
-          <button
-            onClick={() => onNavigate('pedoman-penulisan')}
-            className="px-6 py-3 text-xs font-bold rounded-xl bg-white/5 hover:bg-white/10 text-amber-400 border border-amber-500/20 transition-all whitespace-nowrap"
-          >
-            Kode Etik Redaksi
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            {onOpenShare && (
+              <button
+                onClick={onOpenShare}
+                className="px-5 py-3 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 transition-all whitespace-nowrap flex items-center gap-2 shadow-xs"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>Bagikan Link & QR</span>
+              </button>
+            )}
+            <button
+              onClick={() => onNavigate('pedoman-penulisan')}
+              className="px-6 py-3 text-xs font-bold rounded-xl bg-white/5 hover:bg-white/10 text-amber-400 border border-amber-500/20 transition-all whitespace-nowrap"
+            >
+              Kode Etik Redaksi
+            </button>
+          </div>
         </div>
       </div>
 

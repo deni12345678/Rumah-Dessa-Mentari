@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BookOpen,
   Sparkles,
@@ -14,7 +14,18 @@ import { BookCatalogItem } from '../types';
 import { DmlStore } from '../lib/store';
 
 export const PublishingFoundationPage: React.FC = () => {
-  const books = DmlStore.getBooks();
+  const [books, setBooks] = useState<BookCatalogItem[]>(() => DmlStore.getBooks());
+  const [, setForceUpdate] = useState(0);
+
+  useEffect(() => {
+    setBooks(DmlStore.getBooks());
+    DmlStore.refreshBooksFromCloud().catch(() => {});
+    const unsub = DmlStore.subscribe(() => {
+      setBooks(DmlStore.getBooks());
+      setForceUpdate(n => n + 1);
+    });
+    return unsub;
+  }, []);
 
   const [authorName, setAuthorName] = useState('');
   const [email, setEmail] = useState('');
